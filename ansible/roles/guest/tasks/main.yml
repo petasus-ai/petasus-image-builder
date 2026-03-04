@@ -1,0 +1,5 @@
+---
+- include_tasks: deb_main.yml
+  when: ansible_os_family == "Debian"
+- include_tasks: el_main.yml
+  when: ansible_os_family == "RedHat"

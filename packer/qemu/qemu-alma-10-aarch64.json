@@ -1,0 +1,15 @@
+{
+  "build_name": "alma-10",
+  "distro_name": "alma",
+  "ssh_username": "almalinux",
+  "os_display_name": "Alma 10.1",
+  "guest_os_type": "linux-64",
+  "machine_type": "virt",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "firmware": "/usr/share/edk2/aarch64/QEMU_EFI.fd",
+  "iso_url": "/home/rocky/rhel-images/alma-10-arm64-20260106.qcow2",
+  "iso_checksum": "a6a8f86552e611ed1aa14c06aec71d213b8960e3481250c17c0e04c91b859a4e",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

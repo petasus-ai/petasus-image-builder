@@ -1,0 +1,15 @@
+{
+  "build_name": "ubuntu-2404",
+  "distro_name": "ubuntu",
+  "ssh_username": "ubuntu",
+  "os_display_name": "Ubuntu 24.04",
+  "guest_os_type": "ubuntu-64",
+  "machine_type": "virt",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "firmware": "/usr/share/edk2/aarch64/QEMU_EFI.fd",
+  "iso_url": "https://cloud-images.ubuntu.com/releases/noble/release-20251213/ubuntu-24.04-server-cloudimg-arm64.img",
+  "iso_checksum": "a40713938d74aaec811f74cb1fa8bfcb535d22e26b2a0ca1cc90ad9db898feb9",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

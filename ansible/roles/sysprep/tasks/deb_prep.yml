@@ -1,0 +1,48 @@
+---
+- name: Define file modes
+  set_fact:
+    last_log_mode:   "0664"
+    machine_id_mode: "0644"
+
+- name: Remove apt package caches
+  apt:
+    autoclean: yes
+    autoremove: yes
+    force_apt_get: yes
+
+- name: Remove apt package lists
+  file:
+    state: "{{ item.state }}"
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+  - { path: /var/lib/apt/lists, state: absent,    mode: "0755" }
+  - { path: /var/lib/apt/lists, state: directory, mode: "0755" }
+
+- name: Disable apt-daily services
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+  - apt-daily
+  - apt-daily.timer
+  - apt-daily-upgrade
+  - apt-daily-upgrade.timer
+
+- name: Get installed packages
+  package_facts:
+
+- name: Disable unattended upgrades if installed
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: false
+  when: "'unattended-upgrades' in ansible_facts.packages"
+
+- name: Reset network interface IDs
+  file:
+    state: absent
+    path: /etc/udev/rules.d/70-persistent-net.rules

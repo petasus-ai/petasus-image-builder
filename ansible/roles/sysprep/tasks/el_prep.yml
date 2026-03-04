@@ -1,0 +1,33 @@
+---
+- name: Define file modes
+  set_fact:
+    last_log_mode:   "0644"
+    machine_id_mode: "0444"
+
+- name: Remove yum package caches
+  yum:
+    autoremove: yes
+    lock_timeout: 60
+
+- name: Remove yum package lists
+  command: /usr/bin/yum -y clean all
+
+- name: Gather all ifcfg-* files
+  find:
+    paths: /etc/sysconfig/network-scripts
+    patterns: "ifcfg-*"
+  register: netif_cfgs
+
+- name: Strip out HWADDR and UUID lines
+  lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^(HWADDR|UUID)='
+    state: absent
+    backrefs: no
+  loop: "{{ netif_cfgs.files }}"
+  when: netif_cfgs.matched > 0
+
+- name: Remove the kickstart log
+  file:
+    state: absent
+    path: /root/anaconda-ks.cfg

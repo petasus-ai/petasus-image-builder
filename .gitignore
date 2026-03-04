@@ -1,0 +1,6 @@
+output
+built-images
+packer_cache
+images
+.idea
+.vscode

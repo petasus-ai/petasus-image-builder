@@ -1,0 +1,35 @@
+- block:
+    - name: "Install guest agent"
+      yum:
+        name: "qemu-guest-agent"
+        state: present
+      become: true
+
+    - name: Read /proc/cmdline
+      command: cat /proc/cmdline
+      register: cmdline
+      changed_when: false
+
+    - name: Check whether both options are already present
+      set_fact:
+        opts_present: "{{ ('net.ifnames=0' in cmdline.stdout) and ('biosdevname=0' in cmdline.stdout) }}"
+
+    - name: Locate grubby (don't fail if not present)
+      shell: "command -v grubby 2>/dev/null || true"
+      register: grubby_path
+      changed_when: false
+
+    - name: Skip because options already present
+      debug:
+        msg: "net.ifnames=0 and biosdevname=0 already present in /proc/cmdline — skipping."
+      when: opts_present
+
+    - name: Skip because grubby not installed (informational)
+      debug:
+        msg: "grubby not found on this host; skipping kernel-arg update."
+      when: not opts_present and (grubby_path.stdout == "")
+
+    - name: Add kernel boot options using grubby (only when missing and grubby exists)
+      command: "{{ grubby_path.stdout }} --update-kernel=ALL --args='net.ifnames=0 biosdevname=0'"
+      register: grubby_result
+      when: not opts_present and (grubby_path.stdout != "")

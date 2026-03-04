@@ -1,0 +1,10 @@
+---
+- name: Define file modes
+  set_fact:
+    last_log_mode:   "0644"
+    machine_id_mode: "0444"
+
+- name: Remove the kickstart log
+  file:
+    state: absent
+    path: /root/anaconda-ks.cfg

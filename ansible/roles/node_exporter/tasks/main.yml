@@ -1,0 +1,54 @@
+- name: "Create a tmp directory"
+  file:
+    path: "/tmp/prometheus"
+    state: directory
+    mode: 0755
+
+- name: "Download node_exporter file"
+  get_url:
+    url: https://github.com/prometheus/node_exporter/releases/download/v1.5.0/node_exporter-1.5.0.linux-{{ binary_arch }}.tar.gz
+    dest: /tmp/prometheus/node_exporter.tar.gz
+    mode: '0440'
+
+- name: "Uncompress node_exporter binary"
+  unarchive:
+    src: /tmp/prometheus/node_exporter.tar.gz
+    dest: /tmp/prometheus
+    remote_src: yes
+
+- name: "Copy node_exporter binary"
+  copy:
+    src: /tmp/prometheus/node_exporter-1.5.0.linux-{{ binary_arch }}/node_exporter
+    dest: /usr/local/bin/node_exporter
+    owner: root
+    group: root
+    mode: 0755
+    remote_src: yes
+
+- name: "Remove prometheus directory"
+  file:
+    state: absent
+    path: "/tmp/prometheus"
+
+- name: "Copy node_exporter service"
+  copy:
+    src: etc/systemd/system/node_exporter.service
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Create nodeusr account for node_exporter service"
+  user:
+    name: nodeusr
+    comment: User for node_exporter service
+    system: yes
+    shell: /bin/false
+
+- name: "Start node_exporter service"
+  systemd:
+    state: started
+    name: node_exporter
+    daemon_reload: yes
+    enabled: yes
+    masked: no

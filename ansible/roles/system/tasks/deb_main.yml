@@ -1,0 +1,11 @@
+- name: "Copy rc-local service"
+  copy:
+    src: "rc-local.service"
+    dest: "/etc/systemd/system/rc-local.service"
+    mode: 0644
+
+- name: "Enable rc-local service"
+  service:
+    name: "rc-local"
+    state: started
+    enabled: yes

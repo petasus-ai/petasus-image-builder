@@ -1,0 +1,13 @@
+{
+  "build_name": "alma-8",
+  "distro_name": "alma",
+  "ssh_username": "almalinux",
+  "os_display_name": "AlmaLinux 8.10",
+  "guest_os_type": "linux-64",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "iso_url": "/home/rocky/rhel-images/alma-8-amd64-20260106.qcow2",
+  "iso_checksum": "2c34f676b3433f5b93a69d6cf33799cc46b8ac4a01bcad1f312f1a42630d0c80",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

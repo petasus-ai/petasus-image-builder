@@ -1,0 +1,15 @@
+{
+  "build_name": "rocky-8-uefi",
+  "distro_name": "rocky",
+  "ssh_username": "rocky",
+  "os_display_name": "Rocky 8.10",
+  "guest_os_type": "linux-64",
+  "machine_type": "virt",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "firmware": "/usr/share/edk2/aarch64/QEMU_EFI.fd",
+  "iso_url": "/home/rocky/rhel-images/rocky-8-arm64-20260106.qcow2",
+  "iso_checksum": "1106f1e53723b8ad575b67e8ffdfdc25b0018a6257b1e4598ebadd85e8d3ff20",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

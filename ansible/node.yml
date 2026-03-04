@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: yes
+  roles:
+    - { role: guest, tags: guest }
+    - { role: network, tags: network }
+    - { role: system, tags: system }
+    - { role: node_exporter, tags: node_exporter }
+    - { role: sysprep, tags: sysprep }

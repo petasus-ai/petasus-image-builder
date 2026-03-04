@@ -1,0 +1,13 @@
+{
+  "build_name": "debian-12",
+  "distro_name": "debian",
+  "ssh_username": "debian",
+  "os_display_name": "Debian Bullseye",
+  "guest_os_type": "debian-64",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "iso_url": "https://cloud.debian.org/images/cloud/bookworm/20240507-1740/debian-12-genericcloud-amd64-20240507-1740.qcow2",
+  "iso_checksum": "e7efdc6e0ae643b05c6d53e10efbfd4454a769e13ddd69b5fabaa3e00c0ec431e6d6022530ecc922d944875409f4db66f69f1c134f64098959ab43de321d67c7",
+  "iso_checksum_type": "sha512",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

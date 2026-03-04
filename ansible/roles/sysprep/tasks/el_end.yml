@@ -1,0 +1,8 @@
+- name: Create audit log directory
+  file:
+    path: "/var/log/audit"
+    state: directory
+    mode: 0777
+
+- name: Config permission of audit log directory
+  command: restorecon -F /var/log/audit

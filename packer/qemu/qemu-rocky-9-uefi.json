@@ -1,0 +1,14 @@
+{
+  "build_name": "rocky-9-uefi",
+  "distro_name": "rocky",
+  "ssh_username": "rocky",
+  "os_display_name": "Rocky 9.7",
+  "guest_os_type": "linux-64",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "firmware": "/usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd",
+  "iso_url": "/home/rocky/rhel-images/rocky-9-amd64-20260106.qcow2",
+  "iso_checksum": "844ae2347b7d302bb1a3a200bd0591bf7034279422121d538502305d5cb12a86",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

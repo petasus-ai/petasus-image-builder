@@ -1,0 +1,13 @@
+{
+  "build_name": "ubuntu-2004",
+  "distro_name": "ubuntu",
+  "ssh_username": "ubuntu",
+  "os_display_name": "Ubuntu 20.04",
+  "guest_os_type": "ubuntu-64",
+  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "iso_url": "https://cloud-images.ubuntu.com/releases/focal/release-20250624/ubuntu-20.04-server-cloudimg-amd64.img",
+  "iso_checksum": "18f2977d77dfea1b74aee14533bd21c34f789139e949c57023b7364894b7e5e9",
+  "iso_checksum_type": "sha256",
+  "shutdown_command": "shutdown -P now",
+  "ansible_python_interpreter": "/usr/bin/python3"
+}

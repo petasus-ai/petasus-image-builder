@@ -1,0 +1,107 @@
+{
+  "_comment": "Build with `packer build golden-image.json`",
+  "builders": [
+    {
+      "accelerator": "{{user `accelerator`}}",
+      "disk_compression": true,
+      "disk_image": true,
+      "disk_discard": "{{user `disk_discard`}}",
+      "disk_interface": "virtio-scsi",
+      "disk_size": "{{user `disk_size`}}",
+      "format": "{{ user `format` }}",
+      "headless": "{{ user `headless` }}",
+      "iso_checksum": "{{ user `iso_checksum_type` }}:{{ user `iso_checksum` }}",
+      "iso_url": "{{ user `iso_url` }}",
+      "output_directory": "output",
+      "qemuargs": [
+        [
+          "-m",
+          "{{ user `memory` }}"
+        ],
+        [
+          "-smp",
+          "cpus={{ user `cpus` }}"
+        ],
+        [
+          "-cdrom",
+          "{{ user `cloud_init_image` }}"
+        ],
+        [
+          "-serial",
+          "mon:stdio"
+        ],
+        [
+          "-smbios",
+          "type=1,manufacturer=QEMU,product=QEMU Virtual Machine"
+        ],
+	[
+	  "-cpu",
+          "host"
+	]
+      ],
+      "firmware": "{{user `firmware`}}",
+      "shutdown_command": "echo '{{user `ssh_password`}}' | sudo -S -E sh -c 'usermod -L {{user `ssh_username`}} && {{user `shutdown_command`}}'",
+      "ssh_password": "{{ user `ssh_password` }}",
+      "ssh_port": "{{ user `ssh_port` }}",
+      "ssh_timeout": "2h",
+      "ssh_username": "{{ user `ssh_username` }}",
+      "boot_wait": "60s",
+      "type": "qemu",
+      "use_default_display": false,
+      "vm_name": "{{user `build_name`}}.qcow2",
+      "qemu_binary": "{{user `qemu_binary`}}",
+      "machine_type": "{{user `machine_type`}}",
+      "qemu_img_args": {
+        "resize": ["--shrink"]
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "inline": [
+        "sleep 10",
+        "sudo unlink /bin/sh",
+        "sudo ln -s /bin/bash /bin/sh"
+      ],
+      "type": "shell"
+    },
+    {
+      "ansible_env_vars": [
+        "ANSIBLE_SSH_ARGS='{{user `existing_ansible_ssh_args`}} -o IdentitiesOnly=yes'"
+      ],
+      "extra_arguments": [
+        "--extra-vars",
+        "{{user `ansible_common_vars`}}",
+        "--extra-vars",
+        "{{user `ansible_extra_vars`}}",
+        "--extra-vars",
+        "build_name={{user `build_name`}}"
+      ],
+      "playbook_file": "./ansible/node.yml",
+      "type": "ansible",
+      "user": "builder"
+    },
+    {
+      "execute_command": "echo 'clean ansible tmp directories' | {{ .Vars }} sudo -E -S sh '{{ .Path }}'",
+      "scripts": [
+        "scripts/clean-ansible-tmp.sh"
+      ],
+      "type": "shell"
+    }
+  ],
+  "variables": {
+    "accelerator": "kvm",
+    "ansible_common_vars": "",
+    "ansible_extra_vars": "",
+    "cloud_init_image": "cloud-init/packer.init",
+    "cpus": "4",
+    "disk_size": "16384",
+    "format": "qcow2",
+    "headless": "true",
+    "memory": "8192",
+    "firmware": "",
+    "ssh_password": "builder",
+    "ssh_port": "22"
+  }
+}
+

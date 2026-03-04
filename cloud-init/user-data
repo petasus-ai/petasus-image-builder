@@ -1,0 +1,7 @@
+#cloud-config
+password: builder
+ssh_pwauth: True
+chpasswd: {expire: False}
+
+locale: en_US.UTF-8
+locale_configfile: /etc/default/locale
