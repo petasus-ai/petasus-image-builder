@@ -50,14 +50,14 @@ PACKER_VAR_FILES := $(foreach f,$(abspath $(PACKER_VAR_FILES)),-var-file="$(f)" 
 ## Platform and version combinations
 ## --------------------------------------
 DEBIAN_VERSIONS		:=  debian-11 debian-11-aarch64 debian-12 debian-12-aarch64
-UBUNTU_VERSIONS		:=  ubuntu-2004 ubuntu-2004-aarch64 ubuntu-2204 ubuntu-2204-aarch64 ubuntu-2404 ubuntu-2404-aarch64
+UBUNTU_VERSIONS		:=  ubuntu-2004 ubuntu-2004-aarch64 ubuntu-2204 ubuntu-2204-aarch64 ubuntu-2404 ubuntu-2404-aarch64 ubuntu-2604 ubuntu-2604-aarch64
 ROCKY_VERSIONS          :=  rocky-8-uefi rocky-8-uefi-aarch64 rocky-9-uefi rocky-9-uefi-aarch64 rocky-10-uefi rocky-10-uefi-aarch64
 ALMA_VERSIONS		:=  alma-8 alma-8-aarch64 alma-9 alma-9-aarch64 alma-10 alma-10-aarch64
 OPENSUSE_VERSIONS	:=  opensuse-154
 
 PLATFORMS_AND_VERSIONS	:=	$(DEBIAN_VERSIONS) \
 				$(UBUNTU_VERSIONS) \
-                $(ROCKY_VERSIONS) \
+				$(ROCKY_VERSIONS) \
 				$(ALMA_VERSIONS) \
 				$(OPENSUSE_VERSIONS)
 
@@ -99,6 +99,8 @@ build-qemu-ubuntu-2204: ## Builds Ubuntu 22.04 QEMU image
 build-qemu-ubuntu-2204-aarch64: ## Builds Ubuntu 22.04 arm64 QEMU image
 build-qemu-ubuntu-2404: ## Builds Ubuntu 24.04 QEMU image
 build-qemu-ubuntu-2404-aarch64: ## Builds Ubuntu 24.04 arm64 QEMU image
+build-qemu-ubuntu-2604: ## Builds Ubuntu 26.04 QEMU image
+build-qemu-ubuntu-2604-aarch64: ## Builds Ubuntu 26.04 arm64 QEMU image
 build-qemu-rocky-8-uefi: ## Build Rocky 8 UEFI QEMU image
 build-qemu-rocky-8-uefi-aarch64: ## Build Build Rocky 8 UEFI arm64 QEMU image
 build-qemu-rocky-9-uefi: ## Build Rocky 9 UEFI QEMU image
