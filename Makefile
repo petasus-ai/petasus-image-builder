@@ -52,6 +52,7 @@ PACKER_VAR_FILES := $(foreach f,$(abspath $(PACKER_VAR_FILES)),-var-file="$(f)" 
 DEBIAN_VERSIONS		:=  debian-11 debian-11-aarch64 debian-12 debian-12-aarch64
 UBUNTU_VERSIONS		:=  ubuntu-2004 ubuntu-2004-aarch64 ubuntu-2204 ubuntu-2204-aarch64 ubuntu-2404 ubuntu-2404-aarch64 ubuntu-2604 ubuntu-2604-aarch64
 ROCKY_VERSIONS          :=  rocky-8-uefi rocky-8-uefi-aarch64 rocky-9-uefi rocky-9-uefi-aarch64 rocky-10-uefi rocky-10-uefi-aarch64
+RHEL_VERSIONS		:=  rhel-8-uefi rhel-8-uefi-aarch64 rhel-9-uefi rhel-9-uefi-aarch64 rhel-10-uefi rhel-10-uefi-aarch64
 ALMA_VERSIONS		:=  alma-8 alma-8-aarch64 alma-9 alma-9-aarch64 alma-10 alma-10-aarch64
 OPENSUSE_VERSIONS	:=  opensuse-154
 
@@ -59,7 +60,8 @@ PLATFORMS_AND_VERSIONS	:=	$(DEBIAN_VERSIONS) \
 				$(UBUNTU_VERSIONS) \
 				$(ROCKY_VERSIONS) \
 				$(ALMA_VERSIONS) \
-				$(OPENSUSE_VERSIONS)
+				$(OPENSUSE_VERSIONS) \
+				$(RHEL_VERSIONS)
 
 QEMU_BUILD_NAMES	:=	$(addprefix qemu-,$(PLATFORMS_AND_VERSIONS))
 
@@ -107,6 +109,12 @@ build-qemu-rocky-9-uefi: ## Build Rocky 9 UEFI QEMU image
 build-qemu-rocky-9-uefi-aarch64: ## Build Build Rocky 9 UEFI arm64 QEMU image
 build-qemu-rocky-10-uefi: ## Build Rocky 10 UEFI QEMU image
 build-qemu-rocky-10-uefi-aarch64: ## Build Build Rocky 10 UEFI arm64 QEMU image
+build-qemu-rhel-8-uefi: ## Build RHEL 8 UEFI QEMU image
+build-qemu-rhel-8-uefi-aarch64: ## Build RHEL 8 UEFI arm64 QEMU image
+build-qemu-rhel-9-uefi: ## Build RHEL 9 UEFI QEMU image
+build-qemu-rhel-9-uefi-aarch64: ## Build RHEL 9 UEFI arm64 QEMU image
+build-qemu-rhel-10-uefi: ## Build RHEL 10 UEFI QEMU image
+build-qemu-rhel-10-uefi-aarch64: ## Build RHEL 10 UEFI arm64 QEMU image
 build-qemu-alma-8:	## Builds Alma 8 QEMU image
 build-qemu-alma-8-aarch64: ## Builds Alma 8 arm64 QEMU image
 build-qemu-alma-9:      ## Builds Alma 9 QEMU image

@@ -4,6 +4,13 @@
     last_log_mode:   "0644"
     machine_id_mode: "0444"
 
+# The build-media repo (guest role) points at a build-host URL that does not
+# exist at tenant runtime.
+- name: Remove the build-media dnf repo
+  file:
+    state: absent
+    path: /etc/yum.repos.d/petasus-build-media.repo
+
 - name: Remove yum package caches
   yum:
     autoremove: yes
