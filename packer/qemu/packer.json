@@ -43,6 +43,7 @@
       "shutdown_command": "echo '{{user `ssh_password`}}' | sudo -S -E sh -c 'usermod -L {{user `ssh_username`}} && {{user `shutdown_command`}}'",
       "ssh_password": "{{ user `ssh_password` }}",
       "ssh_port": "{{ user `ssh_port` }}",
+      "ssh_handshake_attempts": 100,
       "ssh_timeout": "2h",
       "ssh_username": "{{ user `ssh_username` }}",
       "boot_wait": "60s",
@@ -60,14 +61,16 @@
     {
       "inline": [
         "sleep 10",
-        "sudo unlink /bin/sh",
-        "sudo ln -s /bin/bash /bin/sh"
+        "sudo unlink /bin/sh || true",
+        "sudo ln -sf /bin/bash /bin/sh"
       ],
       "type": "shell"
     },
     {
       "ansible_env_vars": [
-        "ANSIBLE_SSH_ARGS='{{user `existing_ansible_ssh_args`}} -o IdentitiesOnly=yes'"
+        "ANSIBLE_SSH_ARGS={{user `existing_ansible_ssh_args`}} -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=4",
+        "ANSIBLE_TIMEOUT=120",
+        "ANSIBLE_HOST_KEY_CHECKING=False"
       ],
       "extra_arguments": [
         "--extra-vars",

@@ -69,7 +69,7 @@ QEMU_BUILD_NAMES	:=	$(addprefix qemu-,$(PLATFORMS_AND_VERSIONS))
 QEMU_BUILD_TARGETS	:= $(addprefix build-,$(QEMU_BUILD_NAMES))
 
 $(QEMU_BUILD_TARGETS): deps-qemu
-	packer build $(PACKER_NODE_FLAGS) -var-file="$(abspath packer/qemu/$(subst build-,,$@).json)" $(PACKER_VAR_FILES) packer/qemu/packer.json
+	packer build $(PACKER_NODE_FLAGS) -var-file="$(abspath packer/config/$(if $(findstring -aarch64,$@),arm64,amd64)-args.json)" -var-file="$(abspath packer/qemu/$(subst build-,,$@).json)" $(PACKER_VAR_FILES) packer/qemu/packer.json
 .PHONY: $(QEMU_BUILD_TARGETS)
 
 QEMU_BUILD_RT_TARGETS   := $(addsuffix -rt,$(QEMU_BUILD_TARGETS))

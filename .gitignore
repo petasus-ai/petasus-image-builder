@@ -4,3 +4,6 @@ packer_cache
 images
 .idea
 .vscode
+.local
+logs
+output-*.qcow2

@@ -5,10 +5,10 @@
   "os_display_name": "Rocky 8.10",
   "guest_os_type": "linux-64",
   "machine_type": "virt",
-  "qemu_binary": "/usr/libexec/qemu-kvm",
+  "qemu_binary": "qemu-system-aarch64",
   "firmware": "/usr/share/edk2/aarch64/QEMU_EFI.fd",
-  "iso_url": "/home/rocky/rhel-images/rocky-8-arm64-20260106.qcow2",
-  "iso_checksum": "1106f1e53723b8ad575b67e8ffdfdc25b0018a6257b1e4598ebadd85e8d3ff20",
+  "iso_url": "https://dl.rockylinux.org/pub/rocky/8/images/aarch64/Rocky-8-GenericCloud-Base-8.10-20240528.0.aarch64.qcow2",
+  "iso_checksum": "946b5b9845aa5e3ed98f1bc6ee9873201712a2aef01b87731aed16857e0ca13f",
   "iso_checksum_type": "sha256",
   "shutdown_command": "shutdown -P now",
   "ansible_python_interpreter": "/usr/bin/python3"
