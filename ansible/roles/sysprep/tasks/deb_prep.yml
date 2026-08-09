@@ -46,3 +46,19 @@
   file:
     state: absent
     path: /etc/udev/rules.d/70-persistent-net.rules
+
+# Pre-existing netplan configs — the build's 50-cloud-init.yaml, or the migrated
+# system's own (subiquity's 00-installer-config.yaml, manual files) — pin old NIC
+# names or static addressing. Drop them all; tenant cloud-init regenerates the
+# config for the real NIC.
+- name: Find netplan configs
+  find:
+    paths: /etc/netplan
+    patterns: '*.yaml'
+  register: ci_netplan
+
+- name: Remove netplan configs
+  file:
+    state: absent
+    path: "{{ item.path }}"
+  loop: "{{ ci_netplan.files }}"

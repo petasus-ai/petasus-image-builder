@@ -31,3 +31,14 @@
     state: started
     enabled: true
     name: systemd-resolved
+
+# Same rationale as the EL firewalld handling: the platform scrapes 9100/tcp.
+- name: Gather installed packages
+  package_facts:
+
+- name: Allow the node_exporter port through ufw
+  community.general.ufw:
+    rule: allow
+    port: '9100'
+    proto: tcp
+  when: "'ufw' in ansible_facts.packages"

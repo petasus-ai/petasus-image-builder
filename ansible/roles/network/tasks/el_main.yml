@@ -1,0 +1,23 @@
+# A firewall policy carried over from the source environment typically allows only
+# ssh, which silently breaks the platform's node_exporter scrape on 9100/tcp. Keep
+# the guest firewall but open the platform's monitoring port.
+- name: Gather service facts
+  service_facts:
+
+- name: Allow the node_exporter port through the running firewalld
+  ansible.posix.firewalld:
+    port: 9100/tcp
+    permanent: true
+    immediate: true
+    state: enabled
+  when:
+    - "'firewalld.service' in ansible_facts.services"
+    - ansible_facts.services['firewalld.service'].state == 'running'
+
+- name: Allow the node_exporter port in the firewalld permanent config
+  command: firewall-offline-cmd --add-port=9100/tcp
+  register: fw_offline
+  changed_when: "'ALREADY_ENABLED' not in (fw_offline.stderr | default(''))"
+  when:
+    - "'firewalld.service' in ansible_facts.services"
+    - ansible_facts.services['firewalld.service'].state != 'running'
