@@ -2,6 +2,8 @@
 
 The **Petasus VM Image Builder** provides an automated, declarative framework for constructing secure, optimized, and reproducible Golden VM Images tailored for the **Petasus AI Cloud** infrastructure. Leveraging HashiCorp Packer, this toolchain ensures consistency across environments, providing a standardized foundation for high-performance AI workloads and GPU virtualization instances.
 
+> **Branch note (`master-cilium`):** this branch prepares **customer-supplied (migrated) QCOW2 images** for the Cilium-based Petasus AI Cloud / EdgeStack platform. It installs and configures exactly what the platform's VM lifecycle needs — [`qemu-guest-agent`](https://kubevirt.io/user-guide/virtual_machines/guest_agent_information/) (VM state, IP and guest-OS reporting), [Prometheus `node_exporter`](https://prometheus.io/docs/guides/node-exporter/) v1.11.1 on TCP 9100 (monitoring), cloud-init [NoCloud](https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html) readiness (per-VM users, SSH keys, and network configuration) — and scrubs build-time identity and network state so every VM boots fresh. [Predictable network interface naming](https://www.freedesktop.org/software/systemd/man/latest/systemd.net-naming-scheme.html) is preserved (**never** set `net.ifnames=0`): the platform addresses the default NIC as `enp1s0`. Security hardening (CIS etc.) is intentionally **out of scope** for migrated images. The supported guest matrix is Rocky Linux, RHEL, and Ubuntu; Windows guests are not supported by this toolchain (ansible-over-ssh into a Linux guest).
+
 ## 📋 Supported Operating Systems
 
 ### Host Environments
@@ -12,15 +14,24 @@ The build environment must be running one of the following host operating system
 
 ### Guest Environments
 
-The builder currently supports generating Golden Images for the following guest distributions across multiple architectures:
+The builder currently supports preparing images for the following guest distributions across multiple architectures:
 
 | Distribution | Version(s) | Architecture Support |
 | --- | --- | --- |
 | **Rocky Linux** | 8, 9, 10 | x86_64, ARM64 |
-| **AlmaLinux** | 8, 9, 10 | x86_64, ARM64 |
-| **Ubuntu** | 20.04, 22.04, 24.04 | x86_64, ARM64 |
-| **Debian** | 11, 12 | x86_64, ARM64 |
-| **OpenSUSE** | 15 | x86_64 |
+| **RHEL** | 8, 9, 10 | x86_64, ARM64 |
+| **Ubuntu** | 20.04, 22.04, 24.04, 26.04 | x86_64, ARM64 |
+
+> **RHEL note:** RHEL KVM guest images must be downloaded from the [Red Hat Customer Portal](https://access.redhat.com/downloads) with an active account and placed under `images/` (see the `iso_url`/`iso_checksum` placeholders in `packer/qemu/qemu-rhel-*.json`). The build installs packages with `dnf`, so the base image needs a package source: an attached subscription, Satellite, a local mirror — **or the RHEL installation DVD ISO served as a local repository** (a [Red Hat-documented practice](https://access.redhat.com/solutions/1355683); the DVD carries the `BaseOS/` and `AppStream/` repo trees). To use the ISO path, mount and serve it on the build host, then pass `el_repo_url` to the build — inside the build VM the host is reachable at `10.0.2.2` ([QEMU user-mode networking](https://www.qemu.org/docs/master/system/devices/net.html#using-the-user-mode-network-stack)):
+>
+> ```bash
+> sudo mount -o loop,ro rhel-9.x-aarch64-dvd.iso /mnt/rhel-dvd
+> python3 -m http.server 8099 --directory /mnt/rhel-dvd &
+> PACKER_FLAGS='-var ansible_extra_vars=el_repo_url=http://10.0.2.2:8099' \
+>   make build-qemu-rhel-9-uefi-aarch64
+> ```
+>
+> The build writes `/etc/yum.repos.d/petasus-build-media.repo` from `el_repo_url` and sysprep removes it, so the shipped image carries no build-host reference.
 
 ## 🚀 Getting Started
 
@@ -68,9 +79,9 @@ sha256sum images/<your-image-name>
 
 ```
 
-Navigate to the corresponding JSON configuration file for your target Linux distribution. Update the `iso_checksum` parameter with the value generated in the previous step.
+Navigate to the corresponding JSON configuration file for your target Linux distribution. Update the `iso_url` and `iso_checksum` parameters with your base image path and the value generated in the previous step.
 
-*Example configuration snippet (`ubuntu-2404.json`):*
+*Example configuration snippet (`qemu-ubuntu-2404.json`):*
 
 ```json
 {
@@ -79,7 +90,6 @@ Navigate to the corresponding JSON configuration file for your target Linux dist
   "ssh_username": "ubuntu",
   "os_display_name": "Ubuntu 24.04",
   "guest_os_type": "ubuntu-64",
-  "qemu_binary": "/usr/libexec/qemu-kvm",
   "iso_url": "images/ubuntu-2404.qcow2",
   "iso_checksum": "50c38d3f7307fe770c15a69b316d0001ac28e484239218d23e1ca8c8e7ec9a10",
   "iso_checksum_type": "sha256",
@@ -89,63 +99,76 @@ Navigate to the corresponding JSON configuration file for your target Linux dist
 
 ```
 
-### Step 5: Build the Golden Image
+Alternatively, override the base image on the command line without editing the file:
+
+```bash
+PACKER_FLAGS='-var iso_url=images/customer.qcow2 -var iso_checksum=<sha256>' \
+  make build-qemu-ubuntu-2404
+
+```
+
+### Step 5: Build the Image
 
 Execute the build process for your desired OS using the `make` command.
 
 ```bash
-# Example: Building Ubuntu 24.04
+# Example: Building Ubuntu 24.04 (x86_64) or ARM64
 make build-qemu-ubuntu-2404
+make build-qemu-ubuntu-2404-aarch64
 
 ```
 
-*Note: Upon successful completion, the finalized Golden Image artifact will be generated and located in the `output/` directory.*
+*Note: Upon successful completion, the finalized image artifact will be generated and located in the `output/` directory.*
 
-### Step 6: Containerize the Image for KubeVirt CDI
+What the build applies inside the guest:
 
-To seamlessly provision Virtual Machines in Petasus AI Cloud via KubeVirt, the generated `qcow2` image must be containerized. KubeVirt's Containerized Data Importer (CDI) can pull this OCI container image directly from your registry.
+* **`qemu-guest-agent`** installed and enabled — the platform reads VM state, interface addresses, and guest OS info through it.
+* **`node_exporter` v1.11.1** ([official release binary](https://prometheus.io/download/#node_exporter)) as a systemd service on TCP 9100 — scraped by the platform's per-project monitoring service.
+* **Network normalization** — predictable NIC naming preserved; on Ubuntu the legacy `ifupdown` stack is purged in favor of netplan; build-time cloud-init network profiles (`/etc/netplan/50-cloud-init.yaml`, NetworkManager `cloud-init-*.nmconnection` keyfiles) are removed so per-VM cloud-init configures the real NIC (`enp1s0`, DHCP) cleanly.
+* **Identity scrub (sysprep)** — machine-id (including the D-Bus symlink), SSH host keys, cloud-init instance state, logs, shell history, and the build user's SSH access are all reset; each VM regenerates them on first boot.
 
-**1. Install Container Tools**
+### Step 6: Import the Image into the Platform
 
-If your build server does not have Docker installed, install it using the following commands (Rocky/AlmaLinux example):
+Two ingestion paths are available.
+
+**Option A — Upload the QCOW2 directly (recommended for migrated images).**
+Create a platform volume with the `UploadImage` import source, push the bytes with [`virtctl image-upload`](https://github.com/kubevirt/containerized-data-importer/blob/main/doc/upload.md), then create the VM from that boot volume:
 
 ```bash
-sudo dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
-sudo dnf install -y docker-ce docker-ce-cli containerd.io
-sudo systemctl enable --now docker
-sudo usermod -aG docker $USER
-# Log out and log back in to apply the group membership
+# 1. Create an upload volume (metadata must match the image: distro, arch, boot type)
+curl -X POST "$EDGETRON_API/edgetron/resources/kubevirt/volumes" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name": "migrated-boot", "project": "<project>", "capacity": 16,
+       "import_source": "UploadImage", "os_type": "linux", "os_distro": "ubuntu",
+       "cpu_arch": "aarch64", "boot_type": "uefi"}'
+
+# 2. Upload the processed QCOW2 into the waiting DataVolume
+virtctl image-upload dv migrated-boot -n <project> --no-create \
+  --image-path output/ubuntu-2404.qcow2 \
+  --uploadproxy-url https://<cdi-uploadproxy> --insecure
+
+# 3. Create the VM from the boot volume
+curl -X POST "$EDGETRON_API/edgetron/resources/kubevirt/vms" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name": "migrated-vm", "project": "<project>", "boot_dv": "migrated-boot",
+       "flavor": "<flavor>", "username": "<login-user>", "keypair": "<keypair>"}'
 
 ```
 
-*(Note: Podman is also fully supported and uses the same command syntax).*
-
-**2. Create a Dockerfile**
-
-KubeVirt CDI expects the image to be placed in the `/disk/` directory of a scratch container.
-
-Create a file named `Dockerfile` in the root of the project:
+**Option B — Containerize for the shared image catalogue.**
+To publish the image as a reusable golden image, wrap it as a [containerDisk](https://kubevirt.io/user-guide/storage/disks_and_volumes/#containerdisk) OCI image and register it through the platform's image API (`POST /edgetron/resources/kubevirt/images` with the `docker://` source URL):
 
 ```dockerfile
 # Dockerfile
-FROM alpine
-ADD output/ubuntu-2404.qcow2 /disk/
+FROM scratch
+ADD --chown=107:107 output/ubuntu-2404.qcow2 /disk/
 
 ```
 
-**3. Build and Push the Container Disk**
-
-Build the container image and push it to your organization's container registry.
-
 ```bash
-# Set your registry target
 export REGISTRY="registry.petasus.ai/images"
 export IMAGE_TAG="ubuntu-2404:latest"
-
-# Build the OCI container image
 docker build -t $REGISTRY/$IMAGE_TAG -f Dockerfile .
-
-# Push to the remote registry
 docker push $REGISTRY/$IMAGE_TAG
 
 ```
