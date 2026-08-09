@@ -19,38 +19,25 @@
       gpgcheck=0
   when: el_repo_url is defined and el_repo_url | length > 0
 
-- block:
-    - name: "Install guest agent"
-      yum:
-        name: "qemu-guest-agent"
-        state: present
-      become: true
+- name: Install guest agent
+  dnf:
+    name: qemu-guest-agent
+    state: present
+    update_cache: yes
+    disable_gpg_check: yes
+  register: dnf_result
+  until: dnf_result is succeeded
+  retries: 5
+  delay: 15
 
-    - name: Read /proc/cmdline
-      command: cat /proc/cmdline
-      register: cmdline
-      changed_when: false
+# Stock EL GenericCloud bases (and many migrated customer images) ship net.ifnames=0,
+# forcing eth0-style NIC names. The platform addresses the default NIC by its
+# predictable name (enp1s0), so strip the args from every boot entry.
+- name: Remove net.ifnames/biosdevname kernel args from boot entries
+  command: grubby --update-kernel=ALL --remove-args="net.ifnames biosdevname"
 
-    - name: Check whether both options are already present
-      set_fact:
-        opts_present: "{{ ('net.ifnames=0' in cmdline.stdout) and ('biosdevname=0' in cmdline.stdout) }}"
-
-    - name: Locate grubby (don't fail if not present)
-      shell: "command -v grubby 2>/dev/null || true"
-      register: grubby_path
-      changed_when: false
-
-    - name: Skip because options already present
-      debug:
-        msg: "net.ifnames=0 and biosdevname=0 already present in /proc/cmdline — skipping."
-      when: opts_present
-
-    - name: Skip because grubby not installed (informational)
-      debug:
-        msg: "grubby not found on this host; skipping kernel-arg update."
-      when: not opts_present and (grubby_path.stdout == "")
-
-    - name: Add kernel boot options using grubby (only when missing and grubby exists)
-      command: "{{ grubby_path.stdout }} --update-kernel=ALL --args='net.ifnames=0 biosdevname=0'"
-      register: grubby_result
-      when: not opts_present and (grubby_path.stdout != "")
+- name: Keep regenerated grub configs free of net.ifnames/biosdevname
+  replace:
+    path: /etc/default/grub
+    regexp: ' ?(?:net\.ifnames|biosdevname)=[^ "]*'
+    replace: ''

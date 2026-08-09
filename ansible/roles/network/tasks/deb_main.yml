@@ -1,30 +1,18 @@
-- name: "Install net-tools and ifenslave for supporting bonding"
+- name: "Install net-tools"
   apt:
-    name: ['ifenslave', 'net-tools']
+    name: ['net-tools']
     state: present
     update_cache: true
-  when: ansible_distribution_major_version | int >= 20
 
-- name: "Install netplan.io and clout-init"
+# Bonding is native to netplan/systemd-networkd; legacy ifupdown's networking.service
+# fails under netplan on a broken if-up.d/resolved hook
+# (https://bugs.launchpad.net/ubuntu/+source/ifupdown/+bug/1906226). ifenslave hard-depends
+# on ifupdown, so keep the whole stack out.
+- name: "Purge ifupdown stack (netplan is the renderer)"
   apt:
-    name: ['netplan.io', 'cloud-init']
-    state: present
-    update_cache: true
-  when: ansible_distribution != "Ubuntu"
-
-- name: "Add network renderer #1"
-  lineinfile:
-    path: /etc/cloud/cloud.cfg
-    line: "   network:"
-    create: yes
-  when: ansible_distribution != "Ubuntu"
-
-- name: "Add network renderer #2"
-  lineinfile:
-    path: /etc/cloud/cloud.cfg
-    line: "     renderers: ['netplan', 'eni', 'sysconfig']"
-    create: yes
-  when: ansible_distribution != "Ubuntu"
+    name: ['ifenslave', 'ifupdown']
+    state: absent
+    purge: true
 
 - name: "Activate systemd-resolved service"
   systemd:

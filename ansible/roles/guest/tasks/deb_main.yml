@@ -6,20 +6,25 @@
     update_cache: true
   become: true
 
-- name: Disable predictable network names
-  replace:
-    path: /etc/default/grub
-    regexp: 'GRUB_CMDLINE_LINUX=""'
-    replace: 'GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0"'
+# Migrated customer images may force eth0-style NIC names; the platform addresses
+# the default NIC by its predictable name (enp1s0), so strip the args.
+- name: Find grub default drop-in configs
+  find:
+    paths: /etc/default/grub.d
+    patterns: '*.cfg'
+  register: grub_d_cfgs
   become: true
 
-- name: Disable predictable network names for debian distro
+- name: Remove net.ifnames/biosdevname kernel args from grub defaults
   replace:
-    path: /etc/default/grub
-    regexp: 'GRUB_CMDLINE_LINUX="console=tty0'
-    replace: 'GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0 console=tty0'
+    path: "{{ item }}"
+    regexp: ' ?(?:net\.ifnames|biosdevname)=[^ "]*'
+    replace: ''
+  loop: "{{ ['/etc/default/grub'] + (grub_d_cfgs.files | map(attribute='path') | list) }}"
+  register: grub_defaults
   become: true
 
-- name: Updating grub
+- name: Update grub when the kernel args changed
   command: update-grub
+  when: grub_defaults is changed
   become: true
