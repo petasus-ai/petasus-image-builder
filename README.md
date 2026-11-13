@@ -23,8 +23,8 @@ the platform's virtual machines have, and only a disk that passes is packaged.
 
 ## Host requirements
 
-A Rocky Linux 9 or 10 host of the guest's CPU architecture with KVM (`/dev/kvm`), and room under
-`output/` for about three times the data the source disk holds.
+A RHEL or Rocky Linux 9 or 10 host of the guest's CPU architecture with KVM (`/dev/kvm`), and room
+under `output/` for about three times the data the source disk holds.
 
 ```bash
 make deps
@@ -206,6 +206,8 @@ registered and started as a platform VM. `tests/e2e/fixtures.sh` builds every so
 | Rocky Linux 9 GenericCloud without cloud-init and guest agent, `net.ifnames=0`, a static `ifcfg-eth0`, `/dev/sda` names in fstab and on the kernel command line, an initramfs without virtio drivers, firewalld admitting SSH only, no reachable repository (packages from the Rocky DVD) | yes | |
 | Rocky Linux 9 GenericCloud LVM | | `root-growth` |
 | Rocky Linux 10 GenericCloud | | |
+| RHEL 9.8 minimal install from the DVD, on BIOS (MBR) and on UEFI: LVM, a static address, firewalld, no cloud-init, not registered, packages from the DVD | | `root-growth` |
+| RHEL 10.2 minimal install from the DVD, on BIOS (GPT with a BIOS boot partition) and on UEFI: LVM, a static address, firewalld, no cloud-init, not registered, packages from the DVD | | `root-growth` |
 | CentOS 7 GenericCloud 2211: BIOS, MBR, packages from the CentOS vault | yes | `password-user`, `local-scratch` |
 | CentOS 7.8 installed by virt-builder: BIOS, GPT with a BIOS boot partition, no cloud-init | | `password-user`, `local-scratch` |
 | Ubuntu 20.04 cloud image | | `local-scratch` |
@@ -216,9 +218,8 @@ registered and started as a platform VM. `tests/e2e/fixtures.sh` builds every so
 
 Other RHEL-family releases from 7 and Ubuntu releases from 18.04 take the same code paths. Ubuntu
 16.04 converts without netplan, its network rendered by cloud-init through ifupdown, and is not
-verified. Not verified: RHEL itself (the RHEL-family paths were exercised with Rocky Linux and
-CentOS, including installation without reachable repositories from a Rocky DVD), Debian, and arm64
-hosts and guests.
+verified. Not verified: RHEL 7 and 8 (their paths were exercised with CentOS 7 and Rocky Linux 8),
+Debian, and arm64 hosts and guests.
 
 ## Limits
 

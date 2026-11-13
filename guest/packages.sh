@@ -40,7 +40,8 @@ if [ "$FAMILY" = el ]; then
     PM_OPTS="-y --setopt=timeout=30 --setopt=retries=3 --setopt=cachedir=$PM_DIR/cache --setopt=keepcache=0"
     [ "$PM" = dnf ] && PM_OPTS="$PM_OPTS --setopt=install_weak_deps=False"
     if [ -d "$REPO_DIR" ] && ls "$REPO_DIR"/*.repo >/dev/null 2>&1; then
-        PM_OPTS="$PM_OPTS --setopt=reposdir=$REPO_DIR --disableplugin=subscription-manager"
+        # The RHEL subscription plugins would record the build repositories as the products' sources.
+        PM_OPTS="$PM_OPTS --setopt=reposdir=$REPO_DIR --disableplugin=subscription-manager,product-id"
         info repos "packages come from the build repositories only"
     fi
     pm_install() { $PM $PM_OPTS install "$@"; }

@@ -4,7 +4,8 @@
 #
 #   fixtures.sh DIR [NAME...]     names: see the case list below; default: all
 #
-# Needs Internet access, qemu-img and guestfs-tools.
+# Needs Internet access, qemu-img and guestfs-tools. The rhel-* names, not in the default set, install
+# from DIR/rhel-N-dvd.iso, which Red Hat supplies to its customers, and need qemu-kvm, edk2-ovmf and xorriso.
 set -euo pipefail
 DIR=${1:?usage: fixtures.sh DIR [NAME...]}
 shift
@@ -50,6 +51,59 @@ build() { # build NAME BASE virt-customize-args...
     mv "$name.work" "$name.qcow2"
 }
 
+installed() { # installed NAME DVD bios|uefi: an unattended minimal install from an installation DVD
+    local name=$1 dvd=$2 firmware=$3 work label
+    local firmware_args=()
+    [ -s "$name.qcow2" ] && return 0
+    [ -s "$dvd" ] || { echo "$DIR/$dvd is missing: put the installation DVD there" >&2; exit 2; }
+    work=$(mktemp -d "$DIR/.$name.XXXXXX")
+    label=$(blkid -p -s LABEL -o value "$dvd")
+    xorriso -report_about SORRY -osirrox on -indev "$dvd" -extract /images/pxeboot/vmlinuz "$work/vmlinuz" \
+        -extract /images/pxeboot/initrd.img "$work/initrd.img"
+    # A server as an administrator installs one: LVM, a static address, firewalld, SELinux enforcing,
+    # no cloud-init, not registered. The installer adds the guest agent of the hypervisor it runs on.
+    cat >"$work/ks.cfg" <<'EOF'
+text --non-interactive
+cdrom
+lang en_US.UTF-8
+keyboard us
+timezone Etc/UTC --utc
+rootpw --plaintext fixture-root
+network --device=link --bootproto=static --ip=10.20.30.42 --netmask=255.255.255.0 --gateway=10.20.30.1 --nameserver=10.20.30.2 --onboot=yes
+selinux --enforcing
+firewall --enabled --ssh
+zerombr
+clearpart --all --initlabel
+autopart --type=lvm
+poweroff
+%packages
+@^minimal-environment
+%end
+EOF
+    xorriso -as mkisofs -quiet -V OEMDRV -o "$work/ks.iso" "$work/ks.cfg"
+    qemu-img create -q -f qcow2 "$work/disk.qcow2" 20G
+    if [ "$firmware" = uefi ]; then
+        cp /usr/share/edk2/ovmf/OVMF_VARS.fd "$work/vars.fd"
+        firmware_args=(-drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/ovmf/OVMF_CODE.secboot.fd
+            -drive if=pflash,format=raw,file="$work/vars.fd")
+    fi
+    # The DVD is the first optical drive: the kickstart's `cdrom` installs from it.
+    if ! timeout 3600 /usr/libexec/qemu-kvm -machine q35,accel=kvm -cpu host -smp 4 -m 4096 -display none -no-reboot \
+        "${firmware_args[@]}" -serial file:"$work/console.log" \
+        -kernel "$work/vmlinuz" -initrd "$work/initrd.img" \
+        -append "inst.stage2=hd:LABEL=${label// /\\x20} inst.ks=hd:LABEL=OEMDRV:/ks.cfg inst.text console=ttyS0" \
+        -drive file="$work/disk.qcow2",format=qcow2,if=virtio \
+        -drive file="$dvd",format=raw,media=cdrom,readonly=on \
+        -drive file="$work/ks.iso",format=raw,media=cdrom,readonly=on \
+        -nic user,model=virtio-net-pci || ! virt-cat -a "$work/disk.qcow2" /etc/redhat-release; then
+        tail -n 40 "$work/console.log" >&2
+        echo "the installation of $name failed; see $work" >&2
+        exit 1
+    fi
+    mv "$work/disk.qcow2" "$name.qcow2"
+    rm -rf "$work"
+}
+
 all=(rocky-8 rocky-9 rocky-9-lvm rocky-10 ubuntu-2004 ubuntu-2204 ubuntu-2404 ubuntu-2604 centos-7 vb-ubuntu-2004
     vb-centos-78 rocky-9-dvd rocky-9-hostile ubuntu-2204-hostile)
 [ $# -gt 0 ] || set -- "${all[@]}"
@@ -71,6 +125,8 @@ for name in "$@"; do
         # Installer-made disks: BIOS boot, no cloud-init.
         vb-ubuntu-2004) [ -s $name.qcow2 ] || virt-builder ubuntu-20.04 --format qcow2 -o $name.qcow2 --root-password password:fixture-root ;;
         vb-centos-78) [ -s $name.qcow2 ] || virt-builder centos-7.8 --format qcow2 -o $name.qcow2 --root-password password:fixture-root ;;
+        # RHEL installed from its DVD on BIOS (RHEL 9: MBR, 10: GPT) or UEFI firmware.
+        rhel-9-bios | rhel-9-uefi | rhel-10-bios | rhel-10-uefi) installed $name ${name%-*}-dvd.iso ${name##*-} ;;
         rocky-9-hostile)
             # No cloud-init and no guest agent, eth0-style names, a static address on the source's NIC,
             # device names in fstab and on the kernel command line, an initramfs fitted to other

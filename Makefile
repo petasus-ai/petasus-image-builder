@@ -3,6 +3,8 @@ SHELL := /usr/bin/env bash
 # One conversion at a time: each step works on output/$(NAME).
 .NOTPARALLEL:
 
+# The distribution's interpreter: python3-libguestfs is built for it only.
+PYTHON := /usr/bin/python3
 MIGRATE := bin/petasus-migrate
 FIRMWARE_PACKAGE := $(if $(filter aarch64,$(shell uname -m)),edk2-aarch64,edk2-ovmf)
 HOST_PACKAGES := guestfs-tools libguestfs-xfs python3-libguestfs python3-pyyaml $(FIRMWARE_PACKAGE) qemu-kvm qemu-img \
@@ -57,9 +59,9 @@ all: migrate package push ## migrate, package and push
 ##@ Development
 .PHONY: test
 test: ## Run the unit tests and check the scripts' syntax
-	python3 -m unittest discover -s tests -v
+	$(PYTHON) -m unittest discover -s tests -v
 	@for script in guest/*.sh; do sh -n "$$script" || exit 1; done
-	@python3 -m compileall -q pmig bin/petasus-migrate >/dev/null
+	@$(PYTHON) -m compileall -q pmig bin/petasus-migrate >/dev/null
 
 .PHONY: clean
 clean: ## Remove output/NAME, or every output when NAME is unset
