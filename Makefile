@@ -1,120 +1,66 @@
-# Ensure Make is run with bash shell as some syntax below is bash-specific
 SHELL := /usr/bin/env bash
-
 .DEFAULT_GOAL := help
+# One conversion at a time: each step works on output/$(NAME).
+.NOTPARALLEL:
 
-## --------------------------------------
-## Help
-## --------------------------------------
+MIGRATE := bin/petasus-migrate
+FIRMWARE_PACKAGE := $(if $(filter aarch64,$(shell uname -m)),edk2-aarch64,edk2-ovmf)
+HOST_PACKAGES := guestfs-tools libguestfs-xfs python3-libguestfs python3-pyyaml $(FIRMWARE_PACKAGE) qemu-kvm qemu-img \
+	podman xorriso dosfstools gdisk openssh-clients
+
+export SRC SRC_FORMAT NAME OUTPUT TAG
+export GENERALIZE NETWORK UEFI_CONVERT MISSING_MOUNTS BUILD_REPO_FILE EL_REPO_ISO SKIP_VERIFY
+export REGISTRY REPOSITORY REGISTRY_AUTHFILE REGISTRY_CA SOURCE_REF DISTRO_TYPE
+export VERIFY_TIMEOUT VERIFY_EXTRA GUEST_STEP_TIMEOUT NODE_EXPORTER_VERSION NODE_EXPORTER_TARBALL
+
 ##@ Helpers
+.PHONY: help
 help: ## Display this help
-	@echo NOTE
-	@echo '  The "build-qemu-ubuntu" targets have analogue "clean-qemu-ubuntu" targets for'
-	@echo '  cleaning artifacts created from building qemu QCOW2 image using a local'
-	@echo '  hypervisor.'
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-27s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m NAME=<image name> [SRC=<source disk>] [VARIABLE=value ...]\n"} \
+		/^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 } \
+		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
-## --------------------------------------
-## Dependencies
-## --------------------------------------
-##@ Dependencies
-.PHONY: deps-qemu
-deps-qemu: ## Installs/checks dependencies for QEMU builds
-deps-qemu:
-	hack/ensure-ansible.sh
-	sudo scripts/ensure-packer-root.sh
-	scripts/ensure-packer.sh
+.PHONY: deps
+deps: ## Install the host packages that are missing; refuses a transaction that upgrades installed ones
+	@missing=(); for package in $(HOST_PACKAGES); do rpm -q "$$package" >/dev/null 2>&1 || missing+=("$$package"); done; \
+	if [ $${#missing[@]} -eq 0 ]; then echo "every host package is installed"; exit 0; fi; \
+	plan="$$(sudo dnf install --assumeno "$${missing[@]}" 2>&1 || true)"; \
+	if grep -qE '^(Upgrading|Downgrading|Removing):' <<<"$$plan"; then \
+		echo "$$plan"; echo "refusing: installing $${missing[*]} would change packages that are already installed" >&2; exit 1; \
+	fi; \
+	sudo dnf install -y "$${missing[@]}"
 
-# We want the var files passed to Packer to have a specific order, because the
-# precenence of the variables they contain depends on the order. Files listed
-# later on the CLI have higher precedence. We want the var files that specific 
-# to the provider listed first, then any user-supplied var files so that a user 
-# can override what they need to.
+##@ Migration
+.PHONY: inspect
+inspect: ## Report what SRC holds and whether it converts; changes nothing
+	$(MIGRATE) inspect
 
-# A list of variable files given to Packer to configure things like the versions
-# of Kubernetes and CNI to install. Any additional files from the
-# environment are appended.
-COMMON_NODE_VAR_FILES :=	packer/config/golden-image.json \
-				packer/config/ansible-args.json
+.PHONY: migrate
+migrate: ## Convert SRC to output/NAME/disk.qcow2 and verify that it boots as the platform boots it
+	$(MIGRATE) migrate
 
-# Initialize a list of flags to pass to Packer. This includes any existing flags
-# specified by PACKER_FLAGS, as well as prefixing the list with the variable
-# files from COMMON_VAR_FILES, with each file prefixed by -var-file=.
-#
-# Any existing values from PACKER_FLAGS take precendence over variable files.
-PACKER_NODE_FLAGS := $(foreach f,$(abspath $(COMMON_NODE_VAR_FILES)),-var-file="$(f)" ) \
-				$(PACKER_FLAGS)
-PACKER_VAR_FILES := $(foreach f,$(abspath $(PACKER_VAR_FILES)),-var-file="$(f)" )
+.PHONY: verify
+verify: ## Boot output/NAME/disk.qcow2 again and check it
+	$(MIGRATE) verify
 
-## --------------------------------------
-## Platform and version combinations
-## --------------------------------------
-UBUNTU_VERSIONS		:=  ubuntu-2004 ubuntu-2004-aarch64 ubuntu-2204 ubuntu-2204-aarch64 ubuntu-2404 ubuntu-2404-aarch64 ubuntu-2604 ubuntu-2604-aarch64
-ROCKY_VERSIONS          :=  rocky-8-uefi rocky-8-uefi-aarch64 rocky-9-uefi rocky-9-uefi-aarch64 rocky-10-uefi rocky-10-uefi-aarch64
-RHEL_VERSIONS		:=  rhel-8-uefi rhel-8-uefi-aarch64 rhel-9-uefi rhel-9-uefi-aarch64 rhel-10-uefi rhel-10-uefi-aarch64
+.PHONY: package
+package: ## Build the containerDisk image of the verified disk
+	$(MIGRATE) package
 
-PLATFORMS_AND_VERSIONS	:=	$(UBUNTU_VERSIONS) \
-				$(ROCKY_VERSIONS) \
-				$(RHEL_VERSIONS)
+.PHONY: push
+push: ## Push the containerDisk image to REGISTRY/REPOSITORY:TAG and write output/NAME/image.json
+	$(MIGRATE) push
 
-QEMU_BUILD_NAMES	:=	$(addprefix qemu-,$(PLATFORMS_AND_VERSIONS))
+.PHONY: all
+all: migrate package push ## migrate, package and push
 
-## --------------------------------------
-## Dynamic build targets
-## --------------------------------------
-QEMU_BUILD_TARGETS	:= $(addprefix build-,$(QEMU_BUILD_NAMES))
+##@ Development
+.PHONY: test
+test: ## Run the unit tests and check the scripts' syntax
+	python3 -m unittest discover -s tests -v
+	@for script in guest/*.sh; do sh -n "$$script" || exit 1; done
+	@python3 -m compileall -q pmig bin/petasus-migrate >/dev/null
 
-$(QEMU_BUILD_TARGETS): deps-qemu
-	packer build $(PACKER_NODE_FLAGS) -var-file="$(abspath packer/config/$(if $(findstring -aarch64,$@),arm64,amd64)-args.json)" -var-file="$(abspath packer/qemu/$(subst build-,,$@).json)" $(PACKER_VAR_FILES) packer/qemu/packer.json
-.PHONY: $(QEMU_BUILD_TARGETS)
-
-QEMU_BUILD_RT_TARGETS   := $(addsuffix -rt,$(QEMU_BUILD_TARGETS))
-$(QEMU_BUILD_RT_TARGETS):
-	packer build $(PACKER_NODE_FLAGS) -var-file="$(abspath packer/qemu/$(subst build-,,$@).json)" $(PACKER_VAR_FILES) packer/qemu/packer-rt.json
-.PHONY: $(QEMU_BUILD_RT_TARGETS)
-
-## --------------------------------------
-## Dynamic clean targets
-## --------------------------------------
-QEMU_CLEAN_TARGETS := $(subst build-,clean-,$(QEMU_BUILD_TARGETS))
-.PHONY: $(QEMU_CLEAN_TARGETS)
-$(QEMU_CLEAN_TARGETS):
-	rm -fr output/$(subst clean-qemu-,,$@).qcow2
-
-## --------------------------------------
-## Document dynamic build targets
-## --------------------------------------
-
-build-qemu-ubuntu-2004: ## Builds Ubuntu 20.04 QEMU image
-build-qemu-ubuntu-2004-aarch64: ## Builds Ubuntu 20.04 arm64 QEMU image
-build-qemu-ubuntu-2204: ## Builds Ubuntu 22.04 QEMU image
-build-qemu-ubuntu-2204-aarch64: ## Builds Ubuntu 22.04 arm64 QEMU image
-build-qemu-ubuntu-2404: ## Builds Ubuntu 24.04 QEMU image
-build-qemu-ubuntu-2404-aarch64: ## Builds Ubuntu 24.04 arm64 QEMU image
-build-qemu-ubuntu-2604: ## Builds Ubuntu 26.04 QEMU image
-build-qemu-ubuntu-2604-aarch64: ## Builds Ubuntu 26.04 arm64 QEMU image
-build-qemu-rocky-8-uefi: ## Build Rocky 8 UEFI QEMU image
-build-qemu-rocky-8-uefi-aarch64: ## Build Build Rocky 8 UEFI arm64 QEMU image
-build-qemu-rocky-9-uefi: ## Build Rocky 9 UEFI QEMU image
-build-qemu-rocky-9-uefi-aarch64: ## Build Build Rocky 9 UEFI arm64 QEMU image
-build-qemu-rocky-10-uefi: ## Build Rocky 10 UEFI QEMU image
-build-qemu-rocky-10-uefi-aarch64: ## Build Build Rocky 10 UEFI arm64 QEMU image
-build-qemu-rhel-8-uefi: ## Build RHEL 8 UEFI QEMU image
-build-qemu-rhel-8-uefi-aarch64: ## Build RHEL 8 UEFI arm64 QEMU image
-build-qemu-rhel-9-uefi: ## Build RHEL 9 UEFI QEMU image
-build-qemu-rhel-9-uefi-aarch64: ## Build RHEL 9 UEFI arm64 QEMU image
-build-qemu-rhel-10-uefi: ## Build RHEL 10 UEFI QEMU image
-build-qemu-rhel-10-uefi-aarch64: ## Build RHEL 10 UEFI arm64 QEMU image
-
-## --------------------------------------
-## Clean targets
-## --------------------------------------
-##@ Cleaning
-.PHONY: clean-qemu
-clean-qemu: ## Removes all qemu image output directories (see NOTE at top of help)
-clean-qemu: $(QEMU_CLEAN_TARGETS)
-
-.PHONY: clean-packer-cache
-clean-packer-cache: ## Removes the packer cache
-clean-packer-cache:
-	rm -fr packer_cache/*
+.PHONY: clean
+clean: ## Remove output/NAME, or every output when NAME is unset
+	rm -rf -- "$${OUTPUT:-output}/$(NAME)"

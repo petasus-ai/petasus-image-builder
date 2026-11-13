@@ -1,2 +1,0 @@
-- name: Config permission of audit log directory
-  command: restorecon -F /var/log/audit

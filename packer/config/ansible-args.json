@@ -1,3 +1,0 @@
-{
-  "ansible_common_vars": "systemd_dir=/lib/systemd/system system_env_dir=/etc/sysconfig"
-}

@@ -1,0 +1,6 @@
+# The platform attaches the pod network NIC at PCI 0000:01:00.0 and configures it by the name enp1s0.
+[Match]
+Path=*pci-0000:01:00.0
+
+[Link]
+Name=enp1s0

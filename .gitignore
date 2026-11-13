@@ -1,9 +1,3 @@
-output
-built-images
-packer_cache
-images
-.idea
-.vscode
-.local
-logs
-output-*.qcow2
+output/
+.cache/
+__pycache__/

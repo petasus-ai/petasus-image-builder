@@ -1,0 +1,18 @@
+# Installed by petasus-image-builder.
+[Unit]
+Description=Prometheus Node Exporter
+Documentation=https://prometheus.io/docs/guides/node-exporter/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=nodeusr
+Group=nodeusr
+Type=simple
+Restart=on-failure
+# The InfiniBand port counters, and the guest memory of a VM on hugepages, which has no balloon
+# statistics: the platform reads every other guest signal from the hypervisor.
+ExecStart=/usr/local/bin/node_exporter --collector.disable-defaults --collector.infiniband --collector.meminfo
+
+[Install]
+WantedBy=multi-user.target
